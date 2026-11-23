@@ -147,9 +147,14 @@
 <body>
 <main>
   <h1><span class="small">Christina's</span>Music Converter<svg class="head-heart" viewBox="0 0 32 30" aria-hidden="true"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3a6bb"/><stop offset="1" stop-color="#c9557b"/></linearGradient></defs><path d="M16 28 C 6 21, 1 15, 1 9 C 1 4.5 4.5 1 9 1 C 12 1 14.6 2.8 16 5.4 C 17.4 2.8 20 1 23 1 C 27.5 1 31 4.5 31 9 C 31 15 26 21 16 28 Z" fill="url(#hg)"/><path d="M7 6.5 C 8.5 5 10.5 4.8 12 5.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></h1>
-  <p class="sub">Pick a music file. It turns into a song that plays on any iPhone, right here on your phone. Then tap <b>Save to my phone</b>.</p>
+  <p class="sub">Paste a song link or pick a music file. You get a song that plays on any iPhone. Then tap <b>Save to my phone</b>.</p>
 
   <div class="card">
+    <label for="url">Song link</label>
+    <input id="url" type="url" placeholder="https://…" autocomplete="off" inputmode="url">
+    <button class="big" id="go">Make iPhone song</button>
+    <div class="ready-note" id="macState">Checking for links…</div>
+    <div class="or">— OR —</div>
     <div id="drop" tabindex="0" role="button"><strong>Tap to choose a song</strong><br><span style="font-size:14px">from Files, iCloud, or Downloads</span></div>
     <input id="file" type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.flac,.ogg,.opus,.webm,.aac,.aif,.aiff,.mp4,.mov" hidden multiple>
     <div class="ready-note" id="ready">Getting ready…</div>
@@ -209,7 +214,7 @@
 import { FFmpeg } from './vendor/ffmpeg/index.js';
 
 const $ = id => document.getElementById(id);
-const KEY = 'cmc.phone.history.v1', OKEY = 'cmc.phone.options.v1';
+const KEY = 'cmc.phone.history.v1', OKEY = 'cmc.phone.options.v1', LKEY = 'cmc.phone.linkkey.v1';
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -418,6 +423,102 @@ $('importFile').onchange = async () => {
   } catch { $('err').textContent = 'That file is not a Music Converter list.'; }
   $('importFile').value = '';
 };
+
+// ---------- Song links (done by V's Mac while it is on) ----------
+const NOTE_URL = 'https://api.github.com/repos/GIIWS/music-converter/contents/mac.json?ref=mac';
+let linkKey = (location.hash.match(/k=([A-Za-z0-9_-]{16,})/) || [])[1] || store.get(LKEY, '');
+if (linkKey) store.set(LKEY, linkKey);
+const unb64 = t => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((t.length + 3) % 4)), c => c.charCodeAt(0));
+async function hmacKey(raw) { return crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); }
+async function hmacSign(key, data) { return new Uint8Array(await crypto.subtle.sign('HMAC', key, data)); }
+async function unseal(note) {
+  const enc = new TextEncoder();
+  const k = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('cmc-v1:' + linkKey)));
+  const kk = await hmacKey(k);
+  const ek = await hmacKey(await hmacSign(kk, enc.encode('enc')));
+  const mk = await hmacKey(await hmacSign(kk, enc.encode('mac')));
+  const n = unb64(note.n), c = unb64(note.c), t = unb64(note.t);
+  const want = await hmacSign(mk, new Uint8Array([...n, ...c]));
+  if (want.length !== t.length || want.some((b, i) => b !== t[i])) throw new Error('wrong key');
+  const out = new Uint8Array(c.length);
+  for (let i = 0; i * 32 < c.length; i++) {
+    const ctr = new Uint8Array([...n, (i >>> 24) & 255, (i >>> 16) & 255, (i >>> 8) & 255, i & 255]);
+    const block = await hmacSign(ek, ctr);
+    for (let j = 0; j < 32 && i * 32 + j < c.length; j++) out[i * 32 + j] = c[i * 32 + j] ^ block[j];
+  }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
+let mac = null;
+async function findMac() {
+  const st = $('macState');
+  if (!linkKey) { st.textContent = 'Song links need the special link from V. Music files work anytime.'; st.className = 'ready-note'; return null; }
+  try {
+    const r = await withTimeout(fetch(NOTE_URL, { headers: { Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }), 10000);
+    const note = r.ok ? await r.json() : null;
+    if (!note || note.off || !note.c) throw new Error('off');
+    const m = await unseal(note);
+    const ping = await withTimeout(fetch(m.url + '/ping', { cache: 'no-store' }), 8000);
+    if (!ping.ok || !(await ping.text()).includes('music-converter')) throw new Error('asleep');
+    mac = m;
+    st.textContent = 'Song links ready ✓'; st.className = 'ready-note ok';
+    return m;
+  } catch {
+    mac = null;
+    st.textContent = 'Song links work when V\u2019s Mac is on. Music files work anytime.'; st.className = 'ready-note';
+    return null;
+  }
+}
+const macApi = (path, opts = {}) => fetch(mac.url + path, { ...opts, headers: { ...(opts.headers || {}), 'X-Token': mac.token } });
+
+async function sendLink() {
+  $('err').textContent = '';
+  const url = $('url').value.trim();
+  if (!/^https?:\/\/\S+$/.test(url)) { $('err').textContent = 'Paste a full link that starts with https://'; return; }
+  let o;
+  try { o = readOptions(); } catch (e) { $('err').textContent = e.message; $('optsBox').open = true; return; }
+  $('go').disabled = true;
+  const m = mac || await findMac();
+  $('go').disabled = false;
+  if (!m) { $('err').textContent = 'V\u2019s Mac is off or asleep right now, so links can\u2019t be downloaded. Try again later, or pick a music file instead.'; return; }
+  const entry = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), label: url, extras: describe(o), stage: 'Sending', progress: 0, at: Date.now() };
+  history.unshift(entry); save(); render();
+  $('url').value = '';
+  try {
+    const opts = { start: o.start || undefined, end: o.end ?? undefined, louder: o.louder, fadeIn: o.fadeIn, fadeOut: o.fadeOut };
+    const r = await macApi('/api/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, options: opts }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'That link did not work.');
+    let job = {};
+    for (;;) {
+      await new Promise(res => setTimeout(res, 1200));
+      const jr = await macApi('/api/job/' + d.id);
+      if (!jr.ok) throw new Error('Lost touch with V\u2019s Mac. Try again.');
+      job = await jr.json();
+      entry.stage = job.stage === 'Ready' ? 'Sending to your phone' : job.stage; entry.progress = job.progress || 0;
+      if (job.name) entry.name = job.name;
+      save(); render();
+      if (job.stage === 'Problem') throw new Error(job.error || 'Something went wrong.');
+      if (job.stage === 'Ready') break;
+    }
+    const fr = await macApi('/api/download/' + d.id + '?t=' + encodeURIComponent(mac.token));
+    if (!fr.ok) throw new Error('The song could not be sent to your phone. Try again.');
+    const blob = await fr.blob();
+    const name = job.name || 'Song.m4a';
+    const out = new File([blob], name, { type: blob.type || 'audio/mp4' });
+    blobs.set(entry.id, { file: out, url: URL.createObjectURL(out) });
+    entry.name = name; entry.stage = 'Ready'; entry.progress = 100; save(); render();
+  } catch (e) {
+    entry.stage = 'Problem';
+    entry.error = (e && e.message && !/fetch|network|load failed/i.test(e.message)) ? e.message : 'Lost touch with V\u2019s Mac. Try again.';
+    save(); render();
+    findMac();
+  }
+}
+$('go').onclick = sendLink;
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') sendLink(); });
+findMac();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) findMac(); });
 
 save(); render();
 window.__cmc = { ffmpeg, addFile, history: () => history };

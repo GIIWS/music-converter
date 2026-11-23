@@ -1,5 +1,5 @@
 // Keeps the app on the phone so it opens and works even without internet.
-const CACHE = 'cmc-phone-v1';
+const CACHE = 'cmc-phone-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png',
   './vendor/ffmpeg/index.js', './vendor/ffmpeg/classes.js', './vendor/ffmpeg/const.js', './vendor/ffmpeg/errors.js',
   './vendor/ffmpeg/types.js', './vendor/ffmpeg/utils.js', './vendor/ffmpeg/worker.js',
