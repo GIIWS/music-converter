@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Christina's Music Converter</title>
+<meta name="description" content="Turn music files into iPhone-ready songs, right on your phone.">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Music Converter">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#fbe4ea">
+<style>
+
+  :root {
+    --bg: #fff8f6; --bg2: #fbe4ea; --panel: rgba(255, 255, 255, 0.82); --line: #f1d3dc;
+    --text: #4a2b3a; --dim: #9b7787; --rose: #d6698a; --deep: #b5476c; --blush: #f7c6d3;
+    --sage: #5f9b77; --red: #c2415b; --field: #fffdfc; --shadow: 0 10px 30px rgba(181, 71, 108, .10);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(247, 198, 211, .55) 0, transparent 38%),
+      radial-gradient(circle at 92% 30%, rgba(252, 222, 205, .55) 0, transparent 40%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%) fixed;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 44px 16px 40px; }
+  h1 {
+    margin: 0; font-family: "Didot", "Bodoni 72", "Playfair Display", Georgia, serif;
+    font-weight: 400; font-size: 38px; line-height: 1.1; color: var(--deep); letter-spacing: .3px;
+  }
+  h1 .small { display: block; font-size: 19px; font-style: italic; color: var(--rose); margin-bottom: 4px; letter-spacing: 1px; }
+  .sub { color: var(--dim); margin: 10px 0 28px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 22px; box-shadow: var(--shadow); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  label { display: block; font-weight: 600; margin-bottom: 10px; }
+  input[type=url] {
+    width: 100%; font-size: 17px; padding: 16px; border-radius: 16px; border: 1px solid var(--line);
+    background: var(--field); color: var(--text); outline: none;
+  }
+  input[type=url]:focus { border-color: var(--rose); box-shadow: 0 0 0 4px rgba(214, 105, 138, .15); }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 999px; color: #fff;
+    background: linear-gradient(135deg, #e48aa4, var(--deep)); padding: 16px 22px; min-height: 56px;
+    box-shadow: 0 8px 20px rgba(181, 71, 108, .25); transition: transform .08s ease, filter .15s ease;
+  }
+  button:hover { filter: brightness(1.05); } button:active { transform: scale(.98); }
+  button:disabled { opacity: .5; cursor: default; }
+  .big { width: 100%; margin-top: 14px; font-size: 18px; letter-spacing: .3px; }
+  .ghost { background: #fff; color: var(--deep); border: 1px solid var(--line); box-shadow: none; min-height: 44px; padding: 10px 16px; font-weight: 600; }
+  .or { text-align: center; color: var(--dim); margin: 18px 0; font-size: 13px; letter-spacing: 4px; }
+  #drop {
+    border: 2px dashed var(--blush); border-radius: 20px; padding: 28px 16px; text-align: center; color: var(--dim);
+    cursor: pointer; transition: all .15s ease; background: rgba(255, 255, 255, .5);
+  }
+  #drop.over { border-color: var(--rose); color: var(--text); background: rgba(247, 198, 211, .25); }
+  #drop strong { color: var(--deep); }
+  .err { color: var(--red); margin-top: 10px; min-height: 1.2em; }
+  h2 { font-family: "Didot", "Bodoni 72", Georgia, serif; font-weight: 400; font-size: 24px; color: var(--deep); margin: 36px 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; font-family: -apple-system, system-ui, sans-serif; font-size: 15px; }
+  .job { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 4px 14px rgba(181, 71, 108, .06); }
+  .job .top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .job .name { font-weight: 600; overflow-wrap: anywhere; }
+  .job .stage { color: var(--dim); font-size: 14px; margin-top: 2px; }
+  .job.ready .stage { color: var(--sage); } .job.problem .stage { color: var(--red); }
+  .bar { height: 6px; background: #f7e3e9; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f0a7bb, var(--deep)); transition: width .4s ease; }
+  .empty { color: var(--dim); text-align: center; padding: 18px; font-style: italic; }
+  .tip { color: var(--dim); font-size: 14px; margin-top: 26px; }
+  details.opts { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+  details.opts summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+  details.opts summary::-webkit-details-marker { display: none; }
+  details.opts summary::after { content: '▾'; color: var(--rose); }
+  details.opts[open] summary::after { content: '▴'; }
+  #optSummary { color: var(--rose); font-weight: 500; font-size: 14px; margin-left: auto; margin-right: 10px; }
+  .opt { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .opt:last-child { border-bottom: 0; }
+  .opt .hint { color: var(--dim); font-size: 13px; margin-top: 4px; }
+  .switch { display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 600; margin: 0; }
+  .switch input { width: 24px; height: 24px; accent-color: var(--rose); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .row > div { flex: 1 1 120px; }
+  .row small { display: block; color: var(--dim); margin-bottom: 6px; font-weight: 600; }
+  .row input, .row select {
+    width: 100%; font-size: 16px; padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--field); color: var(--text); min-height: 48px;
+  }
+  .job .note { color: var(--dim); font-size: 13px; }
+  @media (max-width: 480px) { h1 { font-size: 31px; } h1 .small { font-size: 17px; } }
+  .share { margin-top: 30px; }
+  .share h3 { margin: 0 0 6px; font-family: "Didot", "Bodoni 72", Georgia, serif; font-weight: 400; font-size: 22px; color: var(--deep); }
+  .share p { color: var(--dim); margin: 0 0 14px; font-size: 15px; }
+  .linkbox { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .linkbox input { flex: 1 1 220px; font-size: 15px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--field); color: var(--text); min-height: 52px; }
+  .linkbox button { flex: 0 0 auto; }
+  #qr { margin-top: 16px; display: flex; justify-content: center; }
+  #qr svg { width: 210px; height: 210px; background: #fff; border-radius: 18px; padding: 8px; border: 1px solid var(--line); }
+  .status { margin-top: 10px; font-weight: 600; }
+  .status.on { color: var(--sage); } .status.wait { color: var(--rose); } .status.bad { color: var(--red); }
+  .off-btn { width: 100%; margin-top: 14px; }
+  .save { display: block; text-align: center; text-decoration: none; color: #fff; font-weight: 600; border-radius: 999px; padding: 16px 20px; margin-top: 12px; min-height: 56px; font-size: 18px; background: linear-gradient(135deg, #e48aa4, var(--deep)); box-shadow: 0 8px 20px rgba(181, 71, 108, .25); }
+  body.share-mode .mac-only { display: none !important; }
+  body.mac-mode .share-only { display: none !important; }
+  /* Signature */
+  .sig { margin: 46px auto 10px; text-align: center; color: var(--dim); }
+  .sig .with { margin-bottom: 6px; font-family: "Didot", "Bodoni 72", Georgia, serif; font-style: italic; font-size: 17px; letter-spacing: .5px; }
+  .sig .mark { display: inline-flex; align-items: flex-end; gap: 2px; margin-top: 4px; }
+  .sig .vwrap { position: relative; display: inline-block; width: 150px; height: 140px; }
+  .sig .vtext {
+    position: absolute; left: 14px; top: -16px; font-family: "Alex Brush", "Snell Roundhand", "Apple Chancery", cursive;
+    font-size: 116px; line-height: 1; padding: 26px 44px 8px 10px;
+    background: linear-gradient(160deg, #e48aa4 0%, #b5476c 55%, #7e2b4b 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    clip-path: inset(0 100% 0 0); animation: reveal 1.8s cubic-bezier(.6,.1,.3,1) .4s forwards;
+    filter: drop-shadow(0 2px 3px rgba(181, 71, 108, .18));
+  }
+  .sig svg.swash { position: absolute; left: 0; bottom: 4px; width: 160px; height: 40px; overflow: visible; }
+  @keyframes reveal { to { clip-path: inset(0 0 0 0); } }
+  .sig svg.rose { width: 54px; height: 82px; margin-left: -6px; transform-origin: 50% 100%; animation: sway 6s ease-in-out 3s infinite; }
+  .sig .ink { fill: none; stroke: var(--deep); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1; stroke-dashoffset: 1; animation: write 2.2s ease-in-out .4s forwards; }
+  .sig .swash .ink { stroke-width: 2.2; stroke: var(--rose); animation-delay: 1.9s; animation-duration: 1.2s; }
+  .sig .bloom { opacity: 0; animation: bloom 1s ease-out 2.6s forwards; }
+  .head-heart { width: 26px; height: 24px; vertical-align: 2px; margin-left: 8px; transform-origin: 50% 60%; animation: beat 2.4s ease-in-out infinite; }
+  @keyframes beat { 0%, 60%, 100% { transform: scale(1); } 10% { transform: scale(1.14); } 20% { transform: scale(.98); } 30% { transform: scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { .head-heart { animation: none; } }
+  @keyframes write { to { stroke-dashoffset: 0; } }
+  @keyframes bloom { from { opacity: 0; transform: translateY(6px) scale(.92); } to { opacity: 1; transform: none; } }
+  @keyframes sway { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(3deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .sig .ink { animation: none; stroke-dashoffset: 0; } .sig .vtext { animation: none; clip-path: none; } .sig .bloom { animation: none; opacity: 1; } .sig svg.rose { animation: none; }
+  }
+
+  main { padding-top: max(44px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+  .ready-note { color: var(--dim); font-size: 14px; margin-top: 12px; text-align: center; min-height: 1.3em; }
+  .ready-note.ok { color: var(--sage); }
+  .job .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .job .btns .save { flex: 1 1 160px; }
+  .job audio { width: 100%; margin-top: 10px; height: 40px; }
+  .credits { text-align: center; color: var(--dim); font-size: 12px; margin-top: 8px; }
+  .credits a { color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span class="small">Christina's</span>Music Converter<svg class="head-heart" viewBox="0 0 32 30" aria-hidden="true"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3a6bb"/><stop offset="1" stop-color="#c9557b"/></linearGradient></defs><path d="M16 28 C 6 21, 1 15, 1 9 C 1 4.5 4.5 1 9 1 C 12 1 14.6 2.8 16 5.4 C 17.4 2.8 20 1 23 1 C 27.5 1 31 4.5 31 9 C 31 15 26 21 16 28 Z" fill="url(#hg)"/><path d="M7 6.5 C 8.5 5 10.5 4.8 12 5.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></h1>
+  <p class="sub">Pick a music file. It turns into a song that plays on any iPhone, right here on your phone. Then tap <b>Save to my phone</b>.</p>
+
+  <div class="card">
+    <div id="drop" tabindex="0" role="button"><strong>Tap to choose a song</strong><br><span style="font-size:14px">from Files, iCloud, or Downloads</span></div>
+    <input id="file" type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.flac,.ogg,.opus,.webm,.aac,.aif,.aiff,.mp4,.mov" hidden multiple>
+    <div class="ready-note" id="ready">Getting ready…</div>
+    <details class="opts" id="optsBox">
+      <summary>Options <span id="optSummary"></span></summary>
+      <div class="opt">
+        <strong>Trim</strong>
+        <div class="row" style="margin-top:8px">
+          <div><small>Start</small><input id="oStart" inputmode="decimal" placeholder="0:00"></div>
+          <div><small>End</small><input id="oEnd" inputmode="decimal" placeholder="end of song"></div>
+        </div>
+        <div class="hint">Minutes:seconds, like 0:12 and 2:30. Leave empty for the whole song.</div>
+      </div>
+      <div class="opt">
+        <label class="switch"><input type="checkbox" id="oLouder"> Even out volume</label>
+        <div class="hint">Makes quiet songs as loud as the rest. Takes a little longer.</div>
+      </div>
+      <div class="opt">
+        <div class="row">
+          <div><small>Fade in</small><select id="oFadeIn"><option value="0">Off</option><option>1</option><option>2</option><option>3</option><option>5</option></select></div>
+          <div><small>Fade out</small><select id="oFadeOut"><option value="0">Off</option><option>1</option><option>2</option><option>3</option><option>5</option><option>8</option></select></div>
+        </div>
+        <div class="hint">In seconds. A smooth start and finish.</div>
+      </div>
+      <button class="ghost" id="oReset" type="button" style="margin-top:6px">Reset options</button>
+    </details>
+    <div class="err" id="err"></div>
+  </div>
+
+  <h2>Your songs
+    <span class="tools">
+      <button class="ghost" id="export">Export list</button>
+      <button class="ghost" id="import">Import list</button>
+      <input id="importFile" type="file" accept="application/json,.json" hidden>
+    </span>
+  </h2>
+  <div id="jobs"></div>
+  <p class="tip">Saved songs go to the Files app, in Downloads. Keep this page open while a song is converting. Your songs never leave your phone.</p>
+
+  <footer class="sig" aria-label="Signed by V">
+    <div class="with">a little something, from me</div>
+    <div class="mark">
+      <span class="vwrap"><span class="vtext">V</span>
+        <svg class="swash" viewBox="0 0 160 40" aria-hidden="true"><path class="ink" pathLength="1" d="M6 22 C40 34 92 34 128 20 C140 15 150 12 154 16 C157 20 148 26 138 24"/></svg>
+      </span>
+      <svg class="rose" viewBox="0 0 60 90" aria-hidden="true"><g class="bloom"><path d="M30 46 C30 60 28 72 31 87" stroke="#5f9b77" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+<path d="M30.5 63 C38 55 47 57 50 59 C44 66 36 68 30.5 63 Z" fill="#8cbb9c"/>
+<path d="M29.5 74 C22 68 13 70 10 72 C16 77 24 78 29.5 74 Z" fill="#8cbb9c"/>
+<path d="M30 8 C44 6 52 18 48 30 C45 40 36 44 30 44 C22 44 12 38 12 28 C12 16 20 9 30 8 Z" fill="#eb97ae"/>
+<path d="M13 29 C17 41 25 47 30 47 C37 47 45 41 47 31 C43 39 37 42 30 42 C23 42 17 37 13 29 Z" fill="#d6698a"/>
+<path d="M30 15 C38 15 43 23 39 30 C36 35 27 36 23.5 30.5 C20.5 25 25 19 31 20 C35.5 21 35.5 27 31 28" stroke="#b5476c" stroke-width="2" fill="none" stroke-linecap="round"/></g></svg>
+    </div>
+  </footer>
+  <p class="credits">Converting is done by the free <a href="https://ffmpeg.org" rel="noopener">FFmpeg</a> project (ffmpeg.wasm).</p>
+</main>
+<script type="module">
+import { FFmpeg } from './vendor/ffmpeg/index.js';
+
+const $ = id => document.getElementById(id);
+const KEY = 'cmc.phone.history.v1', OKEY = 'cmc.phone.options.v1';
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// ---------- The converter (loads once, then the phone keeps it) ----------
+const ffmpeg = new FFmpeg();
+let logLines = [];
+ffmpeg.on('log', ({ message }) => { logLines.push(message); if (logLines.length > 400) logLines.shift(); });
+let loading = null;
+function ensureLoaded() {
+  if (!loading) {
+    const base = new URL('./vendor/core/', location.href).href;
+    loading = ffmpeg.load({ coreURL: base + 'ffmpeg-core.js', wasmURL: base + 'ffmpeg-core.wasm' })
+      .then(() => { $('ready').textContent = 'Ready ✓'; $('ready').className = 'ready-note ok'; })
+      .catch(e => { loading = null; $('ready').textContent = 'Could not get ready. Check the internet and reopen the page.'; $('ready').className = 'ready-note'; throw e; });
+  }
+  return loading;
+}
+$('ready').textContent = 'Getting ready… (the first time takes a minute)';
+ensureLoaded().catch(() => {});
+
+// ---------- Options ----------
+const fields = { louder: 'oLouder', start: 'oStart', end: 'oEnd', fadeIn: 'oFadeIn', fadeOut: 'oFadeOut' };
+function toSeconds(text) {
+  const t = (text || '').trim();
+  if (!t) return null;
+  if (!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(t)) throw new Error(`"${t}" is not a time. Use minutes:seconds, like 1:05.`);
+  return t.split(':').reduce((acc, part) => acc * 60 + parseFloat(part), 0);
+}
+function readOptions() {
+  const o = { louder: $('oLouder').checked, fadeIn: Number($('oFadeIn').value), fadeOut: Number($('oFadeOut').value), start: 0, end: null };
+  const s = toSeconds($('oStart').value), e = toSeconds($('oEnd').value);
+  if (s !== null) o.start = s;
+  if (e !== null) o.end = e;
+  if (s !== null && e !== null && e <= s) throw new Error('The end time has to be after the start time.');
+  return o;
+}
+function describe(o) {
+  const bits = [];
+  if (o.start || o.end) bits.push('trimmed');
+  if (o.louder) bits.push('volume evened');
+  if (o.fadeIn) bits.push(`fade in ${o.fadeIn}s`);
+  if (o.fadeOut) bits.push(`fade out ${o.fadeOut}s`);
+  return bits.join(' · ');
+}
+function saveOptions() {
+  const raw = {};
+  for (const [k, id] of Object.entries(fields)) raw[k] = $(id).type === 'checkbox' ? $(id).checked : $(id).value;
+  store.set(OKEY, raw);
+  let text = '';
+  try { text = describe(readOptions()); } catch { text = 'check the times'; }
+  $('optSummary').textContent = text;
+}
+{
+  const raw = store.get(OKEY, {});
+  for (const [k, id] of Object.entries(fields)) if (k in raw) { if ($(id).type === 'checkbox') $(id).checked = !!raw[k]; else $(id).value = raw[k]; }
+}
+Object.values(fields).forEach(id => { $(id).addEventListener('input', saveOptions); $(id).addEventListener('change', saveOptions); });
+$('oReset').onclick = () => { $('oLouder').checked = false; $('oStart').value = ''; $('oEnd').value = ''; $('oFadeIn').value = '0'; $('oFadeOut').value = '0'; saveOptions(); };
+saveOptions();
+
+// ---------- Song list ----------
+let history = store.get(KEY, []);
+const blobs = new Map(); // finished songs, kept while the page is open
+history.forEach(j => { if (j.stage !== 'Ready' && j.stage !== 'Problem') { j.stage = 'Problem'; j.error = 'Stopped before it finished. Try again.'; } });
+const save = () => store.set(KEY, history.slice(0, 200));
+
+function render() {
+  const box = $('jobs');
+  box.innerHTML = '';
+  if (!history.length) { box.innerHTML = '<div class="empty">No songs yet.</div>'; return; }
+  for (const j of history) {
+    const div = document.createElement('div');
+    const stage = j.stage || 'Waiting';
+    div.className = 'job' + (stage === 'Ready' ? ' ready' : stage === 'Problem' ? ' problem' : '');
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = j.name || j.label;
+    const st = document.createElement('div'); st.className = 'stage';
+    st.textContent = stage === 'Ready' ? (blobs.has(j.id) ? 'Ready ✓' : 'Made earlier ✓') : stage === 'Problem' ? (j.error || 'Something went wrong.') : `${stage}… ${j.progress || 0}%`;
+    div.append(name, st);
+    if (j.extras) { const ex = document.createElement('div'); ex.className = 'note'; ex.textContent = j.extras; div.append(ex); }
+    if (stage !== 'Ready' && stage !== 'Problem') {
+      const bar = document.createElement('div'); bar.className = 'bar';
+      const fill = document.createElement('i'); fill.style.width = (j.progress || 0) + '%';
+      bar.append(fill); div.append(bar);
+    }
+    const blob = blobs.get(j.id);
+    if (stage === 'Ready' && blob) {
+      const url = blob.url;
+      const audio = document.createElement('audio'); audio.controls = true; audio.preload = 'none'; audio.src = url;
+      const btns = document.createElement('div'); btns.className = 'btns';
+      const a = document.createElement('a'); a.className = 'save'; a.href = url; a.download = j.name; a.textContent = 'Save to my phone';
+      btns.append(a);
+      if (navigator.canShare && navigator.canShare({ files: [blob.file] })) {
+        const sh = document.createElement('button'); sh.className = 'ghost'; sh.textContent = 'Share…'; sh.style.marginTop = '12px';
+        sh.onclick = () => navigator.share({ files: [blob.file] }).catch(() => {});
+        btns.append(sh);
+      }
+      div.append(audio, btns);
+    }
+    box.append(div);
+  }
+}
+
+// ---------- Converting ----------
+let queue = Promise.resolve();
+const cleanName = t => (t || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '').slice(0, 120) || 'Song';
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function durationFromLog() {
+  for (const l of logLines) {
+    const m = l.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+    if (m) return (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]);
+  }
+  return 0;
+}
+
+async function convert(entry, file, o) {
+  const set = (stage, progress) => { entry.stage = stage; entry.progress = progress; save(); render(); };
+  set('Getting ready', 0);
+  await ensureLoaded();
+  const ext = (file.name.match(/\.[a-z0-9]{1,5}$/i) || [''])[0].toLowerCase();
+  const inName = 'in' + ext, outName = 'out.m4a';
+  set('Reading', 0);
+  await ffmpeg.writeFile(inName, new Uint8Array(await file.arrayBuffer()));
+  try {
+    logLines = [];
+    await ffmpeg.exec(['-hide_banner', '-i', inName]); // just reads the song's length
+    const duration = durationFromLog();
+    if (duration && o.start >= duration) throw new Error(`The start time is past the end of the song (${fmt(duration)}).`);
+    let end = o.end;
+    if (duration && end !== null && end > duration) end = null;
+    const length = (end !== null ? end : duration) - o.start;
+    const filters = [];
+    if (o.start || end !== null) {
+      filters.push(`atrim=start=${o.start.toFixed(3)}` + (end !== null ? `:end=${end.toFixed(3)}` : ''), 'asetpts=PTS-STARTPTS');
+    }
+    if (o.louder) filters.push('loudnorm=I=-14:TP=-1.5:LRA=11');
+    if (o.fadeIn) filters.push(`afade=t=in:st=0:d=${o.fadeIn}`);
+    if (o.fadeOut && length > o.fadeOut) filters.push(`afade=t=out:st=${(length - o.fadeOut).toFixed(3)}:d=${o.fadeOut}`);
+    const title = cleanName(file.name.replace(/\.[^.]+$/, ''));
+    const args = ['-hide_banner', '-i', inName, '-map', '0:a:0', '-vn'];
+    if (filters.length) args.push('-af', filters.join(','));
+    args.push('-c:a', 'aac', '-b:a', '256k', '-ar', '44100', '-ac', '2', '-map_metadata', '-1',
+      '-metadata', `title=${title}`, '-movflags', '+faststart', '-f', 'ipod', outName);
+    const onProgress = ({ time }) => {
+      if (length > 0 && time > 0) { entry.progress = Math.max(0, Math.min(99, Math.round(time / 1e6 / length * 100))); render(); }
+    };
+    ffmpeg.on('progress', onProgress);
+    set('Converting', 0);
+    logLines = [];
+    const code = await ffmpeg.exec(args);
+    ffmpeg.off('progress', onProgress);
+    if (code !== 0) {
+      const last = logLines.filter(l => /error|invalid|could not|no such/i.test(l)).pop() || '';
+      throw new Error(('This file could not be converted. ' + last).trim().slice(0, 200));
+    }
+    const data = await ffmpeg.readFile(outName);
+    const name = title + '.m4a';
+    const out = new File([data.buffer], name, { type: 'audio/mp4' });
+    blobs.set(entry.id, { file: out, url: URL.createObjectURL(out) });
+    entry.name = name;
+    set('Ready', 100);
+  } finally {
+    for (const f of [inName, outName]) { try { await ffmpeg.deleteFile(f); } catch {} }
+  }
+}
+
+function addFile(file) {
+  $('err').textContent = '';
+  let o;
+  try { o = readOptions(); } catch (e) { $('err').textContent = e.message; $('optsBox').open = true; return; }
+  if (file.size > 400 * 1024 * 1024) { $('err').textContent = 'That file is too big for a phone to convert. Try one under 400 MB.'; return; }
+  const entry = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), label: file.name, extras: describe(o), stage: 'Waiting', progress: 0, at: Date.now() };
+  history.unshift(entry); save(); render();
+  queue = queue.then(() => convert(entry, file, o)).catch(e => {
+    entry.stage = 'Problem'; entry.error = (e && e.message) || 'Something went wrong.'; save(); render();
+  });
+}
+
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('file').onchange = () => { [...$('file').files].forEach(addFile); $('file').value = ''; };
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => [...e.dataTransfer.files].forEach(addFile));
+
+$('export').onclick = () => {
+  const blob = new Blob([JSON.stringify({ songs: history, options: store.get(OKEY, {}) }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'music-converter-list.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('import').onclick = () => $('importFile').click();
+$('importFile').onchange = async () => {
+  const f = $('importFile').files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const list = Array.isArray(data) ? data : data.songs;
+    if (!Array.isArray(list)) throw new Error();
+    const seen = new Set(history.map(j => j.id));
+    history = [...history, ...list.filter(j => j && j.id && !seen.has(j.id))].sort((a, b) => (b.at || 0) - (a.at || 0));
+    save(); render();
+  } catch { $('err').textContent = 'That file is not a Music Converter list.'; }
+  $('importFile').value = '';
+};
+
+save(); render();
+window.__cmc = { ffmpeg, addFile, history: () => history };
+</script>
+</body>
+</html>
